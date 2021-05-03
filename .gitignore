@@ -1,3 +1,6 @@
 .vscode
 
+# experiments
 /data
+/logs
+/results
