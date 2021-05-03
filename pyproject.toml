@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "transformers-sandbox"
+version = "0.1.0"
+description = ""
+authors = ["Makoto Hiramatsu <hiramatsu.makoto.sp@alumni.tsukuba.ac.jp>"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+spacy = "^3.0.6"
+torch = "^1.8.1"
+rich = "^10.1.0"
+tqdm = "^4.60.0"
+transformers = "^4.5.1"
+fugashi = "^1.1.0"
+unidic-lite = "^1.0.8"
+scikit-learn = "^0.24.2"
+tensorboard = "^2.5.0"
+
+[tool.poetry.dev-dependencies]
+isort = "^5.8.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 119
