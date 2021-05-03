@@ -1,14 +1,18 @@
 import json
 import logging
-from typing import Dict, List
+from typing import Dict
+from typing import List
 
 import torch
 import torch.utils.data
 import tqdm
 from rich.logging import RichHandler
-from transformers import (AdamW, BertForSequenceClassification,
-                          BertTokenizerFast, EvalPrediction, Trainer,
-                          TrainingArguments)
+from transformers import AdamW
+from transformers import BertForSequenceClassification
+from transformers import BertTokenizerFast
+from transformers import EvalPrediction
+from transformers import Trainer
+from transformers import TrainingArguments
 from transformers.tokenization_utils_base import BatchEncoding
 
 logging.basicConfig(
@@ -66,11 +70,11 @@ if __name__ == "__main__":
     tokenizer = BertTokenizerFast.from_pretrained("textattack/bert-base-uncased-RTE")
     logger.info("Created tokenizer")
 
-    train_texts, train_labels = read_jsonl("./data/train.jsonl", tokenizer, with_labels=True)
+    train_texts, train_labels = read_jsonl("./data/rte/train.jsonl", tokenizer, with_labels=True)
     train_dataset = RTEDataset(encodings=train_texts, labels=train_labels)
     logger.info("Loaded dataset for training")
 
-    valid_texts, valid_labels = read_jsonl("./data/val.jsonl", tokenizer, with_labels=True)
+    valid_texts, valid_labels = read_jsonl("./data/rte/val.jsonl", tokenizer, with_labels=True)
     valid_dataset = RTEDataset(encodings=valid_texts, labels=valid_labels)
     logger.info("Loaded dataset for validation")
 
