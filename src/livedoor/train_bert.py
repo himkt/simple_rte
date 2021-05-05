@@ -3,7 +3,6 @@ import logging
 import os.path
 from typing import Any, Callable, Dict
 from typing import List
-from numpy import greater
 
 import torch
 import torch.utils.data
