@@ -81,9 +81,12 @@ def create_objective(model_name: str, num_labels: int) -> Callable:
             param.requires_grad = False
         logger.info("Freeze BERT parameters")
 
-        learning_rate = trial.suggest_float("learning_rate", low=5e-5, high=1e-4, log=True)
-        adam_epsilon = trial.suggest_float("adam_epsilon", low=1e-8, high=1e-7, log=True)
-        weight_decay = trial.suggest_float("weight_decay", low=1e-3, high=1e-2, log=True)
+        # memo: Pre-training: 5e-5
+        learning_rate = trial.suggest_float("learning_rate", low=1e-4, high=1e-3, log=True)
+        weight_decay = trial.suggest_float("weight_decay", low=0, high=1.0)
+        adam_beta1 = trial.suggest_float("adam_beta1", low=0.9, high=0.999, log=True)
+        adam_beta2 = trial.suggest_float("adam_beta2", low=0.999, high=0.99999, log=True)
+        adam_epsilon = trial.suggest_float("adam_epsilon", low=1e-8, high=1e-6, log=True)
 
         config = TrainingArguments(
             output_dir=f"./results/livedoor/trial_{trial.number:03d}",
@@ -92,13 +95,15 @@ def create_objective(model_name: str, num_labels: int) -> Callable:
             greater_is_better=True,
             save_total_limit=3,
             num_train_epochs=50,
-            per_device_train_batch_size=64,
-            per_device_eval_batch_size=128,
+            per_device_train_batch_size=16,
+            per_device_eval_batch_size=32,
             evaluation_strategy="epoch",
             load_best_model_at_end=True,
             weight_decay=weight_decay,
             learning_rate=learning_rate,
             adam_epsilon=adam_epsilon,
+            adam_beta1=adam_beta1,
+            adam_beta2=adam_beta2,
         )
         logger.info("Created training config")
 
@@ -144,13 +149,14 @@ def metrics(p: EvalPrediction) -> Dict[str, float]:
 
 
 if __name__ == "__main__":
-    model_name = "cl-tohoku/bert-large-japanese"
+    # model_name = "cl-tohoku/bert-large-japanese"
+    model_name = "cl-tohoku/bert-base-japanese-whole-word-masking"
     tokenizer = BertJapaneseTokenizer.from_pretrained(model_name)
     logger.info("Created tokenizer")
 
     items = read_livedoor("./data/livedoor")
     label_ids = [item["label_id"] for item in items]
-    train_items, valid_items = train_test_split(items, stratify=label_ids)
+    train_items, valid_items = train_test_split(items, stratify=label_ids, test_size=0.2)
     train_texts, train_labels = zip(*[(item["text"], item["label_id"]) for item in train_items])
     valid_texts, valid_labels = zip(*[(item["text"], item["label_id"]) for item in valid_items])
     train_texts = tokenizer(train_texts, padding=True, truncation=True, max_length=512)
