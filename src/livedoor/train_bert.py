@@ -108,9 +108,11 @@ def create_objective(num_labels: int, train_items: List[Dict], valid_items: List
             logger.info("Make last layer of BERT trainable")
 
         # Here is for abbreviation test for pretrained weights
-        # for param in model.base_model.parameters():
-        #     torch.nn.init.uniform_(param)
-        # logger.info("Initialize BERT parameters using uniform_")
+        flag = False
+        if flag:
+            for param in model.base_model.parameters():
+                torch.nn.init.uniform_(param)
+            logger.info("Initialize BERT parameters using uniform_")
 
         for key, param in model.named_parameters():
             logger.debug(f"{key}: {param.requires_grad}")
@@ -122,8 +124,8 @@ def create_objective(num_labels: int, train_items: List[Dict], valid_items: List
             greater_is_better=True,
             save_total_limit=3,
             num_train_epochs=30,
-            per_device_train_batch_size=8,
-            per_device_eval_batch_size=8,
+            per_device_train_batch_size=4,
+            per_device_eval_batch_size=4,
             evaluation_strategy="epoch",
             load_best_model_at_end=True,
             weight_decay=weight_decay,
@@ -188,7 +190,7 @@ if __name__ == "__main__":
     )
     study = create_study(
         storage="sqlite:///optuna.db",
-        study_name="transformer-sandbox",
+        study_name="transformers-sandbox",
         direction="maximize",
         load_if_exists=True,
     )
