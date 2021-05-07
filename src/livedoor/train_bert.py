@@ -81,11 +81,13 @@ def create_objective(model_name: str, num_labels: int) -> Callable:
             param.requires_grad = False
         logger.info("Freeze BERT parameters")
 
-        # memo: Pre-training: 5e-5
-        learning_rate = trial.suggest_float("learning_rate", low=1e-4, high=1e-3, log=True)
-        weight_decay = trial.suggest_float("weight_decay", low=0, high=1.0)
-        adam_beta1 = trial.suggest_float("adam_beta1", low=0.9, high=0.999, log=True)
-        adam_beta2 = trial.suggest_float("adam_beta2", low=0.999, high=0.99999, log=True)
+        for key, param in model.named_parameters():
+            print(f"{key}: {param.requires_grad}")
+
+        learning_rate = trial.suggest_float("learning_rate", low=2e-5, high=5e-5, log=True)
+        weight_decay = trial.suggest_float("weight_decay", low=0.0, high=0.0)
+        adam_beta1 = trial.suggest_float("adam_beta1", low=0.9, high=0.9)
+        adam_beta2 = trial.suggest_float("adam_beta2", low=0.999, high=0.999)
         adam_epsilon = trial.suggest_float("adam_epsilon", low=1e-8, high=1e-6, log=True)
 
         config = TrainingArguments(
@@ -159,8 +161,8 @@ if __name__ == "__main__":
     train_items, valid_items = train_test_split(items, stratify=label_ids, test_size=0.2)
     train_texts, train_labels = zip(*[(item["text"], item["label_id"]) for item in train_items])
     valid_texts, valid_labels = zip(*[(item["text"], item["label_id"]) for item in valid_items])
-    train_texts = tokenizer(train_texts, padding=True, truncation=True, max_length=512)
-    valid_texts = tokenizer(valid_texts, padding=True, truncation=True, max_length=512)
+    train_texts = tokenizer(train_texts, padding=True, truncation=True, max_length=256)
+    valid_texts = tokenizer(valid_texts, padding=True, truncation=True, max_length=256)
     train_dataset = LivedoorDataset(train_texts, labels=train_labels)
     valid_dataset = LivedoorDataset(valid_texts, labels=valid_labels)
     logger.info("Loaded dataset for training")
