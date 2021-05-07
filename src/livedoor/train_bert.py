@@ -13,7 +13,7 @@ from transformers import BertJapaneseTokenizer
 from transformers import EvalPrediction
 from transformers import Trainer
 from transformers import TrainingArguments
-# from transformers import EarlyStoppingCallback
+from transformers import EarlyStoppingCallback
 from transformers.tokenization_utils_base import BatchEncoding
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
@@ -78,10 +78,10 @@ def create_objective(num_labels: int, train_items: List[Dict], valid_items: List
     def objective(trial: Trial) -> float:
         model_name_candidates = ["cl-tohoku/bert-large-japanese", "cl-tohoku/bert-base-japanese-whole-word-masking"]
         model_name = trial.suggest_categorical("model_name", model_name_candidates)
-        learning_rate = trial.suggest_float("learning_rate", low=2e-5, high=5e-5, log=True)
-        weight_decay = trial.suggest_float("weight_decay", low=0.0, high=0.0)
-        adam_beta1 = trial.suggest_float("adam_beta1", low=0.9, high=0.9)
-        adam_beta2 = trial.suggest_float("adam_beta2", low=0.999, high=0.999)
+        learning_rate = trial.suggest_float("learning_rate", low=1e-5, high=5e-4, log=True)
+        weight_decay = trial.suggest_float("weight_decay", low=0.0, high=1.0)
+        adam_beta1 = trial.suggest_float("adam_beta1", low=0.9, high=0.999)
+        adam_beta2 = trial.suggest_float("adam_beta2", low=0.999, high=0.99999)
         adam_epsilon = trial.suggest_float("adam_epsilon", low=1e-8, high=1e-6, log=True)
         freeze_strategy_candidates = ["all", "last-layer", "none"]
         freeze_strategy = trial.suggest_categorical("freeze_strategy", freeze_strategy_candidates)
@@ -135,7 +135,7 @@ def create_objective(num_labels: int, train_items: List[Dict], valid_items: List
         logger.info("Created training config")
 
         callbacks = [
-            # EarlyStoppingCallback(early_stopping_patience=5),
+            EarlyStoppingCallback(early_stopping_patience=5),
         ]
 
         trainer = Trainer(
