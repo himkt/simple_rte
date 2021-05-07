@@ -13,7 +13,7 @@ from transformers import BertJapaneseTokenizer
 from transformers import EvalPrediction
 from transformers import Trainer
 from transformers import TrainingArguments
-from transformers import EarlyStoppingCallback
+# from transformers import EarlyStoppingCallback
 from transformers.tokenization_utils_base import BatchEncoding
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
@@ -74,8 +74,10 @@ class LivedoorDataset(torch.utils.data.Dataset):
         return len(self.labels)
 
 
-def create_objective(model_name: str, num_labels: int) -> Callable:
+def create_objective(num_labels: int, train_items: List[Dict], valid_items: List[Dict]) -> Callable:
     def objective(trial: Trial) -> float:
+        model_name_candidates = ["cl-tohoku/bert-large-japanese", "cl-tohoku/bert-base-japanese-whole-word-masking"]
+        model_name = trial.suggest_categorical("model_name", model_name_candidates)
         learning_rate = trial.suggest_float("learning_rate", low=2e-5, high=5e-5, log=True)
         weight_decay = trial.suggest_float("weight_decay", low=0.0, high=0.0)
         adam_beta1 = trial.suggest_float("adam_beta1", low=0.9, high=0.9)
@@ -83,6 +85,16 @@ def create_objective(model_name: str, num_labels: int) -> Callable:
         adam_epsilon = trial.suggest_float("adam_epsilon", low=1e-8, high=1e-6, log=True)
         freeze_strategy_candidates = ["all", "last-layer", "none"]
         freeze_strategy = trial.suggest_categorical("freeze_strategy", freeze_strategy_candidates)
+        max_length = trial.suggest_categorical("max_length", (64, 128, 256, 512))
+
+        tokenizer = BertJapaneseTokenizer.from_pretrained(model_name)
+        train_texts, train_labels = zip(*[(item["text"], item["label_id"]) for item in train_items])
+        valid_texts, valid_labels = zip(*[(item["text"], item["label_id"]) for item in valid_items])
+        train_texts = tokenizer(train_texts, padding=True, truncation=True, max_length=max_length)
+        valid_texts = tokenizer(valid_texts, padding=True, truncation=True, max_length=max_length)
+        train_dataset = LivedoorDataset(train_texts, labels=train_labels)
+        valid_dataset = LivedoorDataset(valid_texts, labels=valid_labels)
+        logger.info("Loaded dataset for training")
 
         model = BertForSequenceClassification.from_pretrained(model_name, num_labels=num_labels)
         if freeze_strategy in ("all", "last-layer"):
@@ -110,8 +122,8 @@ def create_objective(model_name: str, num_labels: int) -> Callable:
             greater_is_better=True,
             save_total_limit=3,
             num_train_epochs=30,
-            per_device_train_batch_size=16,
-            per_device_eval_batch_size=32,
+            per_device_train_batch_size=8,
+            per_device_eval_batch_size=8,
             evaluation_strategy="epoch",
             load_best_model_at_end=True,
             weight_decay=weight_decay,
@@ -164,23 +176,20 @@ def metrics(p: EvalPrediction) -> Dict[str, float]:
 
 
 if __name__ == "__main__":
-    # model_name = "cl-tohoku/bert-large-japanese"
-    model_name = "cl-tohoku/bert-base-japanese-whole-word-masking"
-    tokenizer = BertJapaneseTokenizer.from_pretrained(model_name)
-    logger.info("Created tokenizer")
-
     items = read_livedoor("./data/livedoor")
     label_ids = [item["label_id"] for item in items]
-    train_items, valid_items = train_test_split(items, stratify=label_ids, test_size=0.2)
-    train_texts, train_labels = zip(*[(item["text"], item["label_id"]) for item in train_items])
-    valid_texts, valid_labels = zip(*[(item["text"], item["label_id"]) for item in valid_items])
-    train_texts = tokenizer(train_texts, padding=True, truncation=True, max_length=256)
-    valid_texts = tokenizer(valid_texts, padding=True, truncation=True, max_length=256)
-    train_dataset = LivedoorDataset(train_texts, labels=train_labels)
-    valid_dataset = LivedoorDataset(valid_texts, labels=valid_labels)
-    logger.info("Loaded dataset for training")
-
     num_labels = len(set(label_ids))
-    objective = create_objective(model_name=model_name, num_labels=num_labels)
-    study = create_study(storage="sqlite:///optuna.db", study_name="transformer-sandbox", direction="maximize")
-    study.optimize(objective, n_trials=15)
+    train_items, valid_items = train_test_split(items, stratify=label_ids, test_size=0.2)
+
+    objective = create_objective(
+        num_labels=num_labels,
+        train_items=train_items,
+        valid_items=valid_items,
+    )
+    study = create_study(
+        storage="sqlite:///optuna.db",
+        study_name="transformer-sandbox",
+        direction="maximize",
+        load_if_exists=True,
+    )
+    study.optimize(objective, n_trials=150)
