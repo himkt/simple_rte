@@ -81,6 +81,10 @@ def create_objective(model_name: str, num_labels: int) -> Callable:
             param.requires_grad = False
         logger.info("Freeze BERT parameters")
 
+        for param in model.base_model.parameters():
+            torch.nn.init.uniform_(param)
+        logger.info("Initialize BERT parameters using uniform_")
+
         for key, param in model.named_parameters():
             print(f"{key}: {param.requires_grad}")
 
