@@ -76,23 +76,32 @@ class LivedoorDataset(torch.utils.data.Dataset):
 
 def create_objective(model_name: str, num_labels: int) -> Callable:
     def objective(trial: Trial) -> float:
-        model = BertForSequenceClassification.from_pretrained(model_name, num_labels=num_labels)
-        for param in model.base_model.parameters():
-            param.requires_grad = False
-        logger.info("Freeze BERT parameters")
-
-        for param in model.base_model.parameters():
-            torch.nn.init.uniform_(param)
-        logger.info("Initialize BERT parameters using uniform_")
-
-        for key, param in model.named_parameters():
-            print(f"{key}: {param.requires_grad}")
-
         learning_rate = trial.suggest_float("learning_rate", low=2e-5, high=5e-5, log=True)
         weight_decay = trial.suggest_float("weight_decay", low=0.0, high=0.0)
         adam_beta1 = trial.suggest_float("adam_beta1", low=0.9, high=0.9)
         adam_beta2 = trial.suggest_float("adam_beta2", low=0.999, high=0.999)
         adam_epsilon = trial.suggest_float("adam_epsilon", low=1e-8, high=1e-6, log=True)
+        freeze_strategy_candidates = ["all", "last-layer", "none"]
+        freeze_strategy = trial.suggest_categorical("freeze_strategy", freeze_strategy_candidates)
+
+        model = BertForSequenceClassification.from_pretrained(model_name, num_labels=num_labels)
+        if freeze_strategy in ("all", "last-layer"):
+            for param in model.base_model.parameters():
+                param.requires_grad = False
+            logger.info("Freeze BERT parameters")
+
+        if freeze_strategy == "last-layer":
+            for param in model.base_model.encoder.layer[-1].parameters():
+                param.requires_grad = True
+            logger.info("Make last layer of BERT trainable")
+
+        # Here is for abbreviation test for pretrained weights
+        # for param in model.base_model.parameters():
+        #     torch.nn.init.uniform_(param)
+        # logger.info("Initialize BERT parameters using uniform_")
+
+        for key, param in model.named_parameters():
+            logger.debug(f"{key}: {param.requires_grad}")
 
         config = TrainingArguments(
             output_dir=f"./results/livedoor/trial_{trial.number:03d}",
@@ -100,7 +109,7 @@ def create_objective(model_name: str, num_labels: int) -> Callable:
             metric_for_best_model="f1_score",
             greater_is_better=True,
             save_total_limit=3,
-            num_train_epochs=50,
+            num_train_epochs=30,
             per_device_train_batch_size=16,
             per_device_eval_batch_size=32,
             evaluation_strategy="epoch",
@@ -114,7 +123,7 @@ def create_objective(model_name: str, num_labels: int) -> Callable:
         logger.info("Created training config")
 
         callbacks = [
-            EarlyStoppingCallback(early_stopping_patience=5),
+            # EarlyStoppingCallback(early_stopping_patience=5),
         ]
 
         trainer = Trainer(
@@ -173,5 +182,5 @@ if __name__ == "__main__":
 
     num_labels = len(set(label_ids))
     objective = create_objective(model_name=model_name, num_labels=num_labels)
-    study = create_study(storage=None, study_name="transformer-sandbox", direction="maximize")
+    study = create_study(storage="sqlite:///optuna.db", study_name="transformer-sandbox", direction="maximize")
     study.optimize(objective, n_trials=15)
