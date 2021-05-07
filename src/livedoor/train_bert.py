@@ -169,5 +169,5 @@ if __name__ == "__main__":
 
     num_labels = len(set(label_ids))
     objective = create_objective(model_name=model_name, num_labels=num_labels)
-    study = create_study("sqlite:///example.db", study_name="transformer-sandbox", direction="maximize")
+    study = create_study(storage=None, study_name="transformer-sandbox", direction="maximize")
     study.optimize(objective, n_trials=15)
