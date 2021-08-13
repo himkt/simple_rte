@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "transformers-sandbox"
+name = "transformers_sandbox"
 version = "0.1.0"
 description = ""
 authors = ["Makoto Hiramatsu <hiramatsu.makoto.sp@alumni.tsukuba.ac.jp>"]
