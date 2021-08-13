@@ -24,6 +24,8 @@ from sklearn.metrics import f1_score
 from optuna import create_study
 from optuna import Trial
 
+from transformers_sandbox.training import LongTailClassificationTrainer
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -74,7 +76,7 @@ class LivedoorDataset(torch.utils.data.Dataset):
         return len(self.labels)
 
 
-def create_objective(num_labels: int, train_items: List[Dict], valid_items: List[Dict]) -> Callable:
+def create_objective(num_labels: int, train_items: List[Dict], valid_items: List[Dict], prior: torch.Tensor) -> Callable:
     def objective(trial: Trial) -> float:
         model_name_candidates = ["cl-tohoku/bert-large-japanese", "cl-tohoku/bert-base-japanese-whole-word-masking"]
         model_name = trial.suggest_categorical("model_name", model_name_candidates)
@@ -182,12 +184,15 @@ if __name__ == "__main__":
     label_ids = [item["label_id"] for item in items]
     num_labels = len(set(label_ids))
     train_items, valid_items = train_test_split(items, stratify=label_ids, test_size=0.2)
+    prior = torch.bincount(torch.LongTensor(label_ids))
 
     objective = create_objective(
         num_labels=num_labels,
         train_items=train_items,
         valid_items=valid_items,
+        prior=prior,
     )
+
     study = create_study(
         storage="sqlite:///optuna.db",
         study_name="transformers-sandbox",
